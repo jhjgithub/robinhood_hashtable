@@ -156,6 +156,21 @@ static void test_lookup(
     printf("Lookup (0x%x: 0x%lx) = %ld\n", hash, value, (entry ? (entry - table) : -1));
 }
 
+static void test_remove(
+    struct htbl_entry *table,
+    size_t size,
+    uint32_t hash, uint64_t value,
+    htbl_cmp cmp_fn, void *cmp_data) {
+    struct htbl_entry *entry = htbl_lookup(
+        table, size,
+        hash, value,
+        cmp_fn, cmp_data);
+
+    assert(entry && "entry not in table");
+
+    htbl_remove(table, size, entry);
+}
+
 
 int main(int argc, char *argv[]) {
     (void)argc; (void)argv;
@@ -186,6 +201,12 @@ int main(int argc, char *argv[]) {
     test_lookup(table, table_size, 0x107, 0x1, cmp_fn, cmp_data);
     test_lookup(table, table_size, 0x107, 0x2, cmp_fn, cmp_data);
     test_lookup(table, table_size, 0x207, 0x1, cmp_fn, cmp_data);
+
+    test_remove(table, table_size, 0x107, 0x1, cmp_fn, cmp_data);
+    print_table(table, table_size);
+
+    test_remove(table, table_size, 0x107, 0x2, cmp_fn, cmp_data);
+    print_table(table, table_size);
 
     return 0;
 }
