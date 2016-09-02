@@ -18,9 +18,11 @@ struct htbl_entry *htbl_insert(
     struct htbl_entry *table,
     size_t size,
     uint32_t hash,
-    uint64_t value) {
+    uint64_t value,
+    htbl_cmp cmp_fn,
+    void *cmp_data) {
     assert((size & (size-1)) == 0 && "size must be power of two");
-    assert(hash != 0 && "has must be non-zero");
+    assert(hash != 0 && "hash must be non-zero");
 
     size_t bucket = hash & (size-1);
     for(size_t probe = 0; probe < size; ++probe) {
@@ -30,11 +32,12 @@ struct htbl_entry *htbl_insert(
             // empty bucket found
             table[idx].hash = hash;
             table[idx].value = value;
-            return table + idx;
+            return table + idx; // XXX: return value?
         }
 
-        if(hash == table[idx].hash) {
-            // TODO: hash collision
+        if(hash == table[idx].hash &&
+            (!cmp_fn || cmp_fn(value, table[idx].value, cmp_data) == 0)) {
+            // TODO: duplicate insertion
         }
 
         if(htbl_distance(table[idx].hash, size, idx) <
@@ -82,9 +85,12 @@ struct htbl_entry *htbl_remove(
 struct htbl_entry *htbl_lookup(
     struct htbl_entry *table,
     size_t size,
-    uint32_t hash) {
+    uint32_t hash,
+    uint64_t value,
+    htbl_cmp cmp_fn,
+    void *cmp_data) {
     assert((size & (size-1)) == 0 && "size must be power of two");
-    assert(hash != 0 && "has must be non-zero");
+    assert(hash != 0 && "hash must be non-zero");
 
     size_t bucket = hash & (size-1);
     for(size_t probe = 0; probe < size; ++probe) {
@@ -93,8 +99,8 @@ struct htbl_entry *htbl_lookup(
         if(table[idx].hash == 0) {
             // empty entry found, hash is not in this table
             return 0;
-        } if(table[idx].hash == hash) {
-            // TODO: check for value equality in case of hash collision
+        } if(table[idx].hash == hash &&
+            (!cmp_fn || cmp_fn(value, table[idx].value, cmp_data) == 0)) {
             return table + idx;
         }
     }
@@ -106,13 +112,18 @@ void htbl_resize(
     const struct htbl_entry *old_table,
     size_t old_size,
     struct htbl_entry *new_table,
-    size_t new_size) {
+    size_t new_size,
+    htbl_cmp cmp_fn,
+    void *cmp_data) {
     assert((old_size & (old_size-1)) == 0 && "size must be power of two");
     assert((new_size & (new_size-1)) == 0 && "size must be power of two");
 
     for(size_t i = 0; i < old_size; ++i) {
         if(old_table[i].hash != 0) {
-            htbl_insert(new_table, new_size, old_table[i].hash, old_table[i].value);
+            htbl_insert(
+                new_table, new_size,
+                old_table[i].hash, old_table[i].value,
+                cmp_fn, cmp_data);
         }
     }
 }
@@ -127,6 +138,25 @@ static void print_table(const struct htbl_entry *table, size_t size) {
     printf("\n");
 }
 
+static int simple_cmp(uint64_t needle, uint64_t haystack, void *cmp_data) {
+    (void)cmp_data;
+    return needle == haystack ? 0 : (needle < haystack ? -1 : 1);
+}
+
+static void test_lookup(
+    struct htbl_entry *table,
+    size_t size,
+    uint32_t hash, uint64_t value,
+    htbl_cmp cmp_fn, void *cmp_data) {
+    struct htbl_entry *entry = htbl_lookup(
+        table, size,
+        hash, value,
+        cmp_fn, cmp_data);
+
+    printf("Lookup (0x%x: 0x%lx) = %ld\n", hash, value, (entry ? (entry - table) : -1));
+}
+
+
 int main(int argc, char *argv[]) {
     (void)argc; (void)argv;
 
@@ -136,17 +166,26 @@ int main(int argc, char *argv[]) {
 
     print_table(table, table_size);
 
-    htbl_insert(table, table_size, 0x100, 0x1);
+    htbl_cmp cmp_fn = &simple_cmp;
+    void *cmp_data = 0;
+
+    htbl_insert(table, table_size, 0x100, 0x1, cmp_fn, cmp_data);
     print_table(table, table_size);
 
-    htbl_insert(table, table_size, 0x107, 0x1);
+    htbl_insert(table, table_size, 0x107, 0x1, cmp_fn, cmp_data);
     print_table(table, table_size);
 
-    htbl_insert(table, table_size, 0x107, 0x2);
+    htbl_insert(table, table_size, 0x107, 0x2, cmp_fn, cmp_data);
     print_table(table, table_size);
 
-    htbl_insert(table, table_size, 0x100, 0x2);
+    htbl_insert(table, table_size, 0x100, 0x2, cmp_fn, cmp_data);
     print_table(table, table_size);
+
+    test_lookup(table, table_size, 0x100, 0x1, cmp_fn, cmp_data);
+    test_lookup(table, table_size, 0x100, 0x2, cmp_fn, cmp_data);
+    test_lookup(table, table_size, 0x107, 0x1, cmp_fn, cmp_data);
+    test_lookup(table, table_size, 0x107, 0x2, cmp_fn, cmp_data);
+    test_lookup(table, table_size, 0x207, 0x1, cmp_fn, cmp_data);
 
     return 0;
 }
