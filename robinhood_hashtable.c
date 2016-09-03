@@ -77,6 +77,11 @@ struct htbl_entry *htbl_remove(
 
         table[prev].hash = table[next].hash;
         table[prev].value = table[next].value;
+
+        if(table[next].hash == 0) {
+            // empty bucket found, stop
+            return 0;
+        }
     }
 
     return 0; // XXX: return value?
@@ -207,6 +212,18 @@ int main(int argc, char *argv[]) {
 
     test_remove(table, table_size, 0x107, 0x2, cmp_fn, cmp_data);
     print_table(table, table_size);
+
+    test_lookup(table, table_size, 0x107, 0x1, cmp_fn, cmp_data);
+    test_lookup(table, table_size, 0x107, 0x2, cmp_fn, cmp_data);
+
+    test_remove(table, table_size, 0x100, 0x1, cmp_fn, cmp_data);
+    print_table(table, table_size);
+
+    test_remove(table, table_size, 0x100, 0x2, cmp_fn, cmp_data);
+    print_table(table, table_size);
+
+    test_lookup(table, table_size, 0x100, 0x1, cmp_fn, cmp_data);
+    test_lookup(table, table_size, 0x100, 0x2, cmp_fn, cmp_data);
 
     return 0;
 }
