@@ -3,11 +3,11 @@
 #include <assert.h>
 
 struct htbl_entry {
-    uint32_t hash;
+    uint64_t hash;
     uint64_t value;
 };
 
-static inline size_t htbl_distance(uint32_t hash, size_t size, size_t idx) {
+static inline size_t htbl_distance(uint64_t hash, size_t size, size_t idx) {
     size_t bucket = hash & (size-1);
     return bucket <= idx ? (idx - bucket) : (size - (bucket - idx));
 }
@@ -17,7 +17,7 @@ typedef int (*htbl_cmp)(uint64_t needle, uint64_t haystack, void *userdata);
 struct htbl_entry *htbl_insert(
     struct htbl_entry *table,
     size_t size,
-    uint32_t hash,
+    uint64_t hash,
     uint64_t value,
     htbl_cmp cmp_fn,
     void *cmp_data) {
@@ -43,7 +43,7 @@ struct htbl_entry *htbl_insert(
         if(htbl_distance(table[idx].hash, size, idx) <
             htbl_distance(hash, size, idx)) {
             // found an entry in a better position, swap with new entry
-            uint32_t old_hash = table[idx].hash;
+            uint64_t old_hash = table[idx].hash;
             uint64_t old_value = table[idx].value;
             table[idx].hash = hash;
             table[idx].value = value;
@@ -90,7 +90,7 @@ struct htbl_entry *htbl_remove(
 struct htbl_entry *htbl_lookup(
     struct htbl_entry *table,
     size_t size,
-    uint32_t hash,
+    uint64_t hash,
     uint64_t value,
     htbl_cmp cmp_fn,
     void *cmp_data) {
@@ -138,7 +138,7 @@ void htbl_resize(
 
 static void print_table(const struct htbl_entry *table, size_t size) {
     for(size_t i = 0; i < size; ++i) {
-        printf("(0x%x: 0x%lx)  ", table[i].hash, table[i].value);
+        printf("(0x%lx: 0x%lx)  ", table[i].hash, table[i].value);
     }
     printf("\n");
 }
@@ -151,20 +151,20 @@ static int simple_cmp(uint64_t needle, uint64_t haystack, void *cmp_data) {
 static void test_lookup(
     struct htbl_entry *table,
     size_t size,
-    uint32_t hash, uint64_t value,
+    uint64_t hash, uint64_t value,
     htbl_cmp cmp_fn, void *cmp_data) {
     struct htbl_entry *entry = htbl_lookup(
         table, size,
         hash, value,
         cmp_fn, cmp_data);
 
-    printf("Lookup (0x%x: 0x%lx) = %ld\n", hash, value, (entry ? (entry - table) : -1));
+    printf("Lookup (0x%lx: 0x%lx) = %ld\n", hash, value, (entry ? (entry - table) : -1));
 }
 
 static void test_remove(
     struct htbl_entry *table,
     size_t size,
-    uint32_t hash, uint64_t value,
+    uint64_t hash, uint64_t value,
     htbl_cmp cmp_fn, void *cmp_data) {
     struct htbl_entry *entry = htbl_lookup(
         table, size,
