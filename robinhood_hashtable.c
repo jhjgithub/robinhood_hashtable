@@ -133,6 +133,33 @@ void htbl_resize(
     }
 }
 
+#include <stddef.h>
+
+inline uint32_t hash_djb(
+    const uint8_t* data,
+    size_t len) {
+    uint32_t hash = 5381;
+    for(const uint8_t *ptr = data+0;
+        (len != 0 && ptr != data+len) || (len == 0 && *ptr);
+        ptr++) {
+        hash = (hash << 5) + hash + *ptr;
+    }
+    return hash;
+}
+
+inline uint32_t hash_fnv1a(
+    const uint8_t* data,
+    size_t len) {
+
+    uint32_t hash = 2166136261;
+    for(const uint8_t *ptr = data+0;
+        (len != 0 && ptr != data+len) || (len == 0 && *ptr);
+        ptr++) {
+        hash = (hash ^ *ptr) * 16777619;
+    }
+    return hash;
+}
+
 #include <stdio.h>
 #include <string.h>
 
